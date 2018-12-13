@@ -2,11 +2,13 @@ import tensorflow as tf
 import collections
 import matplotlib.pyplot as plt
 
+
 Point = collections.namedtuple('Point', ['x', 'y'])
 
 VERBOSE = False
 # Gravity
 G = 9.8
+#Pi
 PI = 3.1415926
 
 
@@ -14,7 +16,6 @@ class BrachistochroneCurve:
     """
     https://en.wikipedia.org/wiki/Brachistochrone_curve
     Optimization Problem
-    TODO: test it,  not sure it is correct or not.
     """
     def __init__(self, start_point, end_point):
         assert start_point.x < end_point.x and start_point.y > end_point.y
@@ -29,11 +30,10 @@ class BrachistochroneCurve:
         y = tf.Variable(start_point.y, trainable=False, name='py_start')
         self.Points.append([x, y])
 
-        # Init variables
-        # ONLY y value for points are optimization variables.
+        # initialize variables
+        # y value for points are optimization variables.
         for i in range(1, self.num_vars - 1):
             x = tf.Variable(start_point.x + i * self.dx, trainable=False, name='px{}'.format(i))
-            # TODO: Find a local minimal
             # y = tf.Variable(end_point.y, name='py{}'.format(i))
             y = tf.Variable(start_point.y + i * self.dy, name='py{}'.format(i))
             self.Points.append([x, y])
@@ -61,6 +61,7 @@ class BrachistochroneCurve:
             self.Times.append(tf.identity(time, name='time{}'.format(i)))
 
         #making sure the variables add up, else it will stop program
+        #assert statement will immediately return error (debug safety)
         assert len(self.Points) == self.num_vars
         assert len(self.Accelerations) == self.num_vars - 1
         assert len(self.Velocities) == self.num_vars
@@ -76,7 +77,7 @@ class BrachistochroneCurve:
         x, y = point
         x_next, y_next = point_next
 
-        # Draw a picture, and you got it
+        # slope of acceleration
         slop = tf.atan((y_next - y) / self.dx)
         acceleration = - G * tf.cos(PI / 2. - slop)
 
@@ -102,20 +103,18 @@ class BrachistochroneCurve:
         distance = tf.sqrt(tf.reduce_mean(tf.square(x - x_next) +
                                           tf.square(y - y_next)))
 
-        # This is mathematically hacky...
         # Use linear model for most of line segments
         # Only use quadratic dynamic model for first line segment, since it can handle velocity close to 0.
         if is_first:
             # Quadratic formula, 0.5 * acc * t^2 + vel * t - distance = 0
             # NOTE: Can't use quadratic model for all segments,
-            # it makes the optimization numerical unstable. (try it by yourself)
+            # it makes the optimization numerical unstable.
             time = (-vel + tf.sqrt(vel * vel + 2 * acc * distance)) / acc
             next_vel = vel + acc * time
         else:
-            # linear dynamic model. It is Stable but can't handle velocity close to 0.
+            # linear dynamic model.
             time_est = distance / vel
             next_vel_est = vel + acc * time_est
-            # I guess a while loop can make it converge...
             average_vel = (vel + next_vel_est) / 2
             time = distance / average_vel
             next_vel = vel + acc * time
@@ -125,7 +124,6 @@ class BrachistochroneCurve:
     def loss(self):
         """
         Loss for Brachistochrone Curve
-        Sum of times. NOTE: I didn't constrain the curve to be continuous
         :return: scale loss tensor
         """
         loss = 0.
@@ -137,7 +135,7 @@ class BrachistochroneCurve:
 
 def BrachistochroneCurveDemo():
     """
-    Demo with a plot
+    Demo
     """
     START_POINT = Point(x=0., y=1.)
     END_POINT = Point(x=3., y=0.)
@@ -168,7 +166,7 @@ def BrachistochroneCurveDemo():
                     print('vel:', var)
                 for var in Acc:
                     print('acc:', var)
-
+            #Plotting
             plt.plot(X, Y)
             plt.title('Brachistochrone Curve')
             plt.draw()
@@ -178,7 +176,6 @@ def BrachistochroneCurveDemo():
 
 
 def main():
-
     BrachistochroneCurveDemo()
 
 
